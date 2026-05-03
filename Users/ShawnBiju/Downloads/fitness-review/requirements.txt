@@ -1,0 +1,6 @@
+garminconnect>=0.3.3
+anthropic>=0.25.0
+google-api-python-client>=2.120.0
+google-auth>=2.29.0
+python-dateutil>=2.9.0
+python-dotenv>=1.0.0
