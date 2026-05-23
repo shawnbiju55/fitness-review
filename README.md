@@ -1,7 +1,7 @@
 # Fitness Review Pipeline
 
 Automated weekly fitness review: Garmin data + Day One journal entries →
-Google Drive CSVs → Power BI (work laptop) + Claude analysis.
+Google Drive CSVs → Power BI (work laptop) + Claude analysis + Gmail delivery.
 
 ## Setup
 
@@ -30,6 +30,15 @@ pip install -r requirements.txt
 
 **Anthropic:**
 - Add your API key to `.env`
+
+**Gmail (for emailing the weekly report):**
+1. Enable the Gmail API on your Google Cloud project
+2. APIs & Services → Credentials → Create Credentials → OAuth client ID
+   → Application type: Desktop app → Download JSON
+3. Save to `./credentials/gmail_oauth_credentials.json`
+4. Add `GMAIL_RECIPIENT=your@email.com` to `.env`
+5. First run opens a browser for OAuth authorization
+   Token saved to `./credentials/gmail_token.json` and reused automatically
 
 ### 3. Day One iOS Shortcut
 
@@ -94,7 +103,10 @@ fitness-review/
 ├── watermarks.db           # local SQLite, gitignored
 ├── CHANGELOG.md
 ├── credentials/            # gitignored
-│   └── google_service_account.json
+│   ├── google_service_account.json
+│   └── gmail_oauth_credentials.json
+├── data/                   # gitignored
+│   └── dayone_export.json
 ├── pull/
 │   ├── garmin.py           # Garmin Connect data pull
 │   └── dayone.py           # Day One JSON export parser
@@ -104,7 +116,8 @@ fitness-review/
 │   └── analysis.py         # Claude weekly report generation
 └── load/
     ├── watermark.py        # incremental load tracking
-    └── drive.py            # Google Drive append + upload
+    ├── drive.py            # Google Drive append + upload
+    └── gmail.py            # Gmail delivery of weekly report
 ```
 
 ## Troubleshooting
@@ -117,3 +130,10 @@ Watermark won't advance — next run will safely retry the same date range.
 
 **Day One file not found:** Check `DAYONE_EXPORT_PATH` in `.env`.
 Ensure the iOS Shortcut has run at least once and the file is synced.
+
+**Gmail: browser doesn't open for auth:** Run `python run.py` in an interactive
+terminal (not a headless Task Scheduler job) for the first run to complete OAuth.
+After that, `./credentials/gmail_token.json` handles auth silently.
+
+**Gmail: token expired:** Delete `./credentials/gmail_token.json` and re-run
+interactively to re-authorize.
