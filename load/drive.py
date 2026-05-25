@@ -11,20 +11,17 @@ Append logic:
 This makes the operation idempotent: re-running for the same date range
 produces the same result — no duplicates.
 
-Auth: Google Service Account. Create one in Google Cloud Console:
-  IAM & Admin → Service Accounts → Create → download JSON key
-  Share your Drive folder with the service account email.
+Auth: OAuth2 via load.auth.get_credentials() (shared token with Gmail).
 """
 
 import csv
 import io
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-from google.oauth2.service_account import Credentials
-from config import GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_DRIVE_FOLDER_ID
+from config import GOOGLE_DRIVE_FOLDER_ID
+from load.auth import get_credentials
 from transform.normalize import get_columns
 
-_SCOPES = ["https://www.googleapis.com/auth/drive"]
 _MIME_CSV = "text/csv"
 
 _service = None
@@ -33,10 +30,7 @@ _service = None
 def _get_service():
     global _service
     if _service is None:
-        creds = Credentials.from_service_account_file(
-            GOOGLE_SERVICE_ACCOUNT_JSON, scopes=_SCOPES
-        )
-        _service = build("drive", "v3", credentials=creds)
+        _service = build("drive", "v3", credentials=get_credentials())
     return _service
 
 
