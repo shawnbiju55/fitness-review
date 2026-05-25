@@ -17,6 +17,11 @@ GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DAYONE_EXPORT_PATH = os.getenv("DAYONE_EXPORT_PATH", "./data/dayone_export.json")
 
+# --- Gmail ---
+GMAIL_RECIPIENT = os.getenv("GMAIL_RECIPIENT", "")
+GMAIL_CREDENTIALS_JSON = os.getenv("GMAIL_CREDENTIALS_JSON", "./credentials/gmail_oauth_credentials.json")
+GMAIL_TOKEN_PATH = os.getenv("GMAIL_TOKEN_PATH", "./credentials/gmail_token.json")
+
 # --- Watermark DB ---
 WATERMARK_DB_PATH = "./watermarks.db"
 
