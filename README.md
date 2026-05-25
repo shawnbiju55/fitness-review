@@ -1,6 +1,6 @@
 # Fitness Review Pipeline
 
-Automated weekly fitness review: Garmin data + Day One journal entries →
+Automated weekly fitness review: Garmin data →
 Google Drive CSVs → Power BI (work laptop) + Claude analysis + Gmail delivery.
 
 ## Setup
@@ -19,45 +19,27 @@ pip install -r requirements.txt
 - Add your Garmin Connect email and password
 - First run will authenticate and store tokens at `~/.garminconnect/garmin_tokens.json`
 
-**Google Drive (Service Account):**
+**Google (Drive + Gmail — shared OAuth):**
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a project → Enable Google Drive API
-3. IAM & Admin → Service Accounts → Create → download JSON key
-4. Save JSON key to `./credentials/google_service_account.json`
+2. Create a project → Enable Google Drive API and Gmail API
+3. APIs & Services → Credentials → Create Credentials → OAuth client ID
+   → Application type: Desktop app → Download JSON
+4. Save to `./credentials/client_secrets.json`
 5. Create a folder in your Google Drive → copy the folder ID from the URL
-6. Share that folder with the service account email (Editor access)
-7. Add folder ID to `.env`
+6. Add folder ID and `EMAIL_RECIPIENT=your@email.com` to `.env`
+7. First run opens a browser for OAuth authorization (grants Drive + Gmail together).
+   Token saved to `./credentials/oauth_token.json` and reused automatically.
 
 **Anthropic:**
 - Add your API key to `.env`
 
-**Gmail (for emailing the weekly report):**
-1. Enable the Gmail API on your Google Cloud project
-2. APIs & Services → Credentials → Create Credentials → OAuth client ID
-   → Application type: Desktop app → Download JSON
-3. Save to `./credentials/gmail_oauth_credentials.json`
-4. Add `GMAIL_RECIPIENT=your@email.com` to `.env`
-5. First run opens a browser for OAuth authorization
-   Token saved to `./credentials/gmail_token.json` and reused automatically
-
-### 3. Day One iOS Shortcut
-
-Create an iOS Shortcut that:
-1. Triggers every Sunday at 8:00 PM
-2. Action: "Get Journal Entries" → Last 30 days → All journals
-3. Action: "Get Contents of URL" (or save to Files)
-4. Saves JSON to iCloud Drive or Google Drive app folder
-5. Update `DAYONE_EXPORT_PATH` in `.env` to point to the synced file
-
-Alternatively: export manually from Day One web → save to the path in `.env`.
-
-### 4. First run (initial 90-day batch)
+### 3. First run (initial 90-day batch)
 ```bash
 python run.py
 ```
 No watermarks exist yet → pulls last 90 days for all sources.
 
-### 5. Windows Task Scheduler (automated weekly runs)
+### 4. Windows Task Scheduler (automated weekly runs)
 
 1. Open Task Scheduler → Create Basic Task
 2. Name: `Fitness Review Pipeline`
@@ -68,7 +50,7 @@ No watermarks exist yet → pulls last 90 days for all sources.
    - Start in: `C:\path\to\fitness-review`
 5. Enable: "Run whether user is logged on or not"
 
-### 6. Power BI (work laptop)
+### 5. Power BI (work laptop)
 
 1. Open Power BI Desktop
 2. Get Data → Web → enter the Google Drive direct download URL for each CSV:
@@ -85,7 +67,6 @@ fitness-review/                          ← your Google Drive folder
 ├── garmin_activities_master.csv
 ├── garmin_sleep_master.csv
 ├── garmin_daily_master.csv
-├── dayone_entries_master.csv
 └── weekly_reports/
     ├── analysis_2026-W18.md
     ├── analysis_2026-W19.md
@@ -103,18 +84,15 @@ fitness-review/
 ├── watermarks.db           # local SQLite, gitignored
 ├── CHANGELOG.md
 ├── credentials/            # gitignored
-│   ├── google_service_account.json
-│   └── gmail_oauth_credentials.json
-├── data/                   # gitignored
-│   └── dayone_export.json
+│   ├── client_secrets.json   # OAuth client ID (from GCP)
+│   └── oauth_token.json      # auto-created after first login
 ├── pull/
-│   ├── garmin.py           # Garmin Connect data pull
-│   └── dayone.py           # Day One JSON export parser
+│   └── garmin.py           # Garmin Connect data pull
 ├── transform/
 │   ├── normalize.py        # schema enforcement + dedup
-│   ├── sentiment.py        # Claude sentiment enrichment
 │   └── analysis.py         # Claude weekly report generation
 └── load/
+    ├── auth.py             # shared OAuth2 credentials (Drive + Gmail)
     ├── watermark.py        # incremental load tracking
     ├── drive.py            # Google Drive append + upload
     └── gmail.py            # Gmail delivery of weekly report
@@ -125,15 +103,11 @@ fitness-review/
 **Garmin auth fails:** Delete `~/.garminconnect/garmin_tokens.json` and re-run.
 If you have MFA enabled, first login requires interactive browser step.
 
-**Drive upload fails:** Check service account has Editor access to the folder.
-Watermark won't advance — next run will safely retry the same date range.
+**Drive upload fails:** Watermark won't advance — next run will safely retry the same date range.
 
-**Day One file not found:** Check `DAYONE_EXPORT_PATH` in `.env`.
-Ensure the iOS Shortcut has run at least once and the file is synced.
-
-**Gmail: browser doesn't open for auth:** Run `python run.py` in an interactive
+**OAuth: browser doesn't open for auth:** Run `python run.py` in an interactive
 terminal (not a headless Task Scheduler job) for the first run to complete OAuth.
-After that, `./credentials/gmail_token.json` handles auth silently.
+After that, `./credentials/oauth_token.json` handles auth silently.
 
-**Gmail: token expired:** Delete `./credentials/gmail_token.json` and re-run
-interactively to re-authorize.
+**OAuth: token expired or invalid:** Delete `./credentials/oauth_token.json` and re-run
+interactively to re-authorize. This grants combined Drive + Gmail access in one step.

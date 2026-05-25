@@ -5,6 +5,31 @@ Format: `[YYYY-MM-DD] | Type | Description | Why`
 
 ---
 
+## [2026-05-25] | REFACTOR | Auth consolidation + dead code cleanup
+
+**Why:** Simplify auth by using a single OAuth2 token for both Google Drive and Gmail
+instead of separate credentials. Remove dead Day One integration code (no public API).
+
+**Changes:**
+- Removed `pull/dayone.py`, `transform/sentiment.py`, and all Day One references
+  from config, watermark, normalize, drive, analysis, and run.py.
+- Created `load/auth.py`: shared `get_credentials()` for Drive + Gmail OAuth2.
+- Refactored `load/drive.py`: uses shared OAuth instead of service account.
+- Refactored `load/gmail.py`: uses shared OAuth instead of its own token flow.
+- Renamed `GMAIL_RECIPIENT` → `EMAIL_RECIPIENT` in config.py and .env.example.
+- Removed config vars: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GMAIL_CREDENTIALS_JSON`,
+  `GMAIL_TOKEN_PATH`, `DAYONE_EXPORT_PATH`, `DAYONE_COLUMNS`.
+- Pinned `garminconnect>=0.3.3` in requirements.txt (tokenstore support).
+
+**Migration (one-time):**
+- Delete `credentials/oauth_token.json` before next run — scopes changed.
+  Browser auth will open once to grant combined Drive + Gmail access.
+- Rename `GMAIL_RECIPIENT` to `EMAIL_RECIPIENT` in your `.env` file.
+- Remove `GMAIL_CREDENTIALS_JSON`, `GMAIL_TOKEN_PATH`, `GOOGLE_SERVICE_ACCOUNT_JSON`
+  from `.env` (no longer used).
+
+---
+
 ## [2026-05-23] | FEATURE | Gmail API delivery of weekly report
 
 **Why:** After the pipeline generates and uploads the weekly analysis report to Drive,
