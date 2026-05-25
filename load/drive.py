@@ -106,7 +106,7 @@ def append_to_master(source: str, new_records: list[dict], filename: str) -> int
     Appends new_records to the master CSV for a source on Drive.
     Returns count of rows actually appended (net-new only).
 
-    source: one of "activities", "sleep", "daily", "dayone"
+    source: one of "activities", "sleep", "daily"
     new_records: normalized list of dicts
     filename: Drive file name (from config.DRIVE_FILES)
     """
@@ -121,7 +121,6 @@ def append_to_master(source: str, new_records: list[dict], filename: str) -> int
         "activities": "activity_id",
         "sleep":      "date",
         "daily":      "date",
-        "dayone":     "entry_id",
     }
     pk = pk_map[source]
 

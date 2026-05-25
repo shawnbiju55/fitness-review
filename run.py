@@ -2,36 +2,31 @@
 run.py — Pipeline entry point. Orchestrates all steps in order.
 
 Run manually:   python run.py
-Scheduled:      Windows Task Scheduler → trigger weekly (Sunday night / Monday morning)
+Scheduled:      Windows Task Scheduler — trigger weekly (Sunday night)
 
-Step order:
+Steps:
   1. Read watermarks (determine date range per source)
-  2. Pull Garmin (activities, sleep, daily)
-  3. Pull Day One entries
-  4. Enrich Day One with sentiment (Claude API)
+  2. Pull Garmin activities
+  3. Pull Garmin sleep
+  4. Pull Garmin daily summaries
   5. Normalize all datasets
-  6. Append to master CSVs on Google Drive
-  7. Advance watermarks (only on successful Drive write)
-  8. Generate weekly narrative report (Claude API) → upload to Drive
-  9. Email weekly report via Gmail
+  6. Append to master CSVs on Google Drive + advance watermarks
+  7. Generate weekly narrative report via Claude API → upload to Drive
+  8. Email weekly report via Gmail
 
 Failure behavior:
-  - If any source fails to pull, that source is skipped for this run.
-    Other sources proceed normally. Watermark for failed source is not advanced.
-  - If Drive upload fails for a source, watermark is not advanced.
-    Next run will re-pull and re-deduplicate safely.
+  - Each source is isolated. A failed pull skips that source; others proceed.
+  - Watermark only advances after a successful Drive write.
+    Next run re-pulls the same date range and deduplicates safely.
   - If Gmail fails, pipeline still completes — report is available on Drive.
 """
 
-import sys
-from datetime import date
+from datetime import date, timedelta
 from load.watermark import get_watermark, set_watermark, get_all_watermarks
 from load.drive import append_to_master, upload_analysis_report
 from load.gmail import send_weekly_report
 from pull.garmin import pull_activities, pull_sleep, pull_daily
-from pull.dayone import pull_dayone_entries
 from transform.normalize import normalize
-from transform.sentiment import enrich_with_sentiment
 from transform.analysis import generate_weekly_report
 from config import DRIVE_FILES, get_date_range_for_run
 
@@ -43,63 +38,46 @@ def main():
     print("=" * 55)
 
     # --- Step 1: Watermarks ---
-    print("\n[1/8] Reading watermarks...")
+    print("\n[1/7] Reading watermarks...")
     wm = get_all_watermarks()
     for src, last in wm.items():
-        print(f"  {src}: last loaded {last or 'never (initial batch)'}")
+        print(f"  {src}: last loaded {last or 'never (initial 90-day batch)'}")
 
-    # --- Step 2: Garmin activities ---
+    # --- Step 2: Activities ---
     activities_norm = []
-    print("\n[2/8] Garmin activities...")
+    print("\n[2/7] Garmin activities...")
     try:
         start, end = get_date_range_for_run(wm["activities"])
-        raw_activities = pull_activities(start, end)
-        activities_norm = normalize(raw_activities, "activities")
+        activities_norm = normalize(pull_activities(start, end), "activities")
     except Exception as e:
-        print(f"  [ERROR] Activities pull failed: {e}")
+        print(f"  [ERROR] Activities: {e}")
 
-    # --- Step 3: Garmin sleep ---
+    # --- Step 3: Sleep ---
     sleep_norm = []
-    print("\n[3/8] Garmin sleep...")
+    print("\n[3/7] Garmin sleep...")
     try:
         start, end = get_date_range_for_run(wm["sleep"])
-        raw_sleep = pull_sleep(start, end)
-        sleep_norm = normalize(raw_sleep, "sleep")
+        sleep_norm = normalize(pull_sleep(start, end), "sleep")
     except Exception as e:
-        print(f"  [ERROR] Sleep pull failed: {e}")
+        print(f"  [ERROR] Sleep: {e}")
 
-    # --- Step 4: Garmin daily ---
+    # --- Step 4: Daily ---
     daily_norm = []
-    print("\n[4/8] Garmin daily summaries...")
+    print("\n[4/7] Garmin daily summaries...")
     try:
         start, end = get_date_range_for_run(wm["daily"])
-        raw_daily = pull_daily(start, end)
-        daily_norm = normalize(raw_daily, "daily")
+        daily_norm = normalize(pull_daily(start, end), "daily")
     except Exception as e:
-        print(f"  [ERROR] Daily pull failed: {e}")
+        print(f"  [ERROR] Daily: {e}")
 
-    # --- Step 5: Day One + sentiment ---
-    dayone_norm = []
-    print("\n[5/8] Day One entries + sentiment...")
-    try:
-        start, end = get_date_range_for_run(wm["dayone"])
-        raw_dayone = pull_dayone_entries(start, end)
-        raw_dayone = enrich_with_sentiment(raw_dayone)
-        dayone_norm = normalize(raw_dayone, "dayone")
-    except Exception as e:
-        print(f"  [ERROR] Day One pull/enrich failed: {e}")
-
-    # --- Step 6: Drive uploads + watermark advancement ---
-    print("\n[6/8] Writing to Google Drive...")
-
+    # --- Step 5: Drive uploads + watermarks ---
+    print("\n[5/7] Writing to Google Drive...")
     sources = [
         ("activities", activities_norm, DRIVE_FILES["activities"]),
         ("sleep",      sleep_norm,      DRIVE_FILES["sleep"]),
         ("daily",      daily_norm,      DRIVE_FILES["daily"]),
-        ("dayone",     dayone_norm,     DRIVE_FILES["dayone"]),
     ]
 
-    today = date.today()
     for source, records, filename in sources:
         if not records:
             print(f"  [drive] {source}: no records — skipping.")
@@ -108,34 +86,31 @@ def main():
             rows_written = append_to_master(source, records, filename)
             if rows_written >= 0:
                 dates = [r["date"] for r in records if r.get("date")]
-                watermark_date = max(dates) if dates else today.isoformat()
+                watermark_date = max(dates) if dates else date.today().isoformat()
                 set_watermark(source, date.fromisoformat(watermark_date))
         except Exception as e:
             print(f"  [ERROR] Drive write failed for {source}: {e}")
-            print(f"  Watermark NOT advanced for {source}. Will retry next run.")
+            print(f"  Watermark NOT advanced. Will retry next run.")
 
-    # --- Step 7: Weekly narrative report ---
+    # --- Step 6: Weekly report ---
     report_md = None
     week_label = None
-    print("\n[7/8] Generating weekly analysis report...")
+    print("\n[6/7] Generating weekly analysis report...")
     try:
-        from datetime import timedelta
         week_end = date.today() - timedelta(days=1)
         week_label = week_end.strftime("%Y-W%V")
-
         report_md = generate_weekly_report(
             week_end=week_end,
             activities=activities_norm,
             sleep=sleep_norm,
             daily=daily_norm,
-            dayone=dayone_norm,
         )
         upload_analysis_report(week_label, report_md)
     except Exception as e:
-        print(f"  [ERROR] Analysis report failed: {e}")
+        print(f"  [ERROR] Analysis report: {e}")
 
-    # --- Step 8: Email report ---
-    print("\n[8/8] Emailing weekly report...")
+    # --- Step 7: Email report ---
+    print("\n[7/7] Emailing weekly report...")
     if report_md and week_label:
         try:
             send_weekly_report(week_label, report_md)
@@ -143,7 +118,7 @@ def main():
             print(f"  [ERROR] Gmail delivery failed: {e}")
             print("  Report still available on Drive.")
     else:
-        print("  No report to send — report generation failed or produced no output.")
+        print("  No report to send — report generation failed.")
 
     print("\n" + "=" * 55)
     print("  Pipeline complete.")

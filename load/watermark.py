@@ -12,7 +12,7 @@ from datetime import date
 from config import WATERMARK_DB_PATH
 
 # Valid source keys — must match DRIVE_FILES keys in config.py
-SOURCES = {"activities", "sleep", "daily", "dayone"}
+SOURCES = {"activities", "sleep", "daily"}
 
 
 def _get_connection() -> sqlite3.Connection:

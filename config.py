@@ -15,8 +15,6 @@ GARMIN_PASSWORD = os.getenv("GARMIN_PASSWORD")
 GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "./credentials/google_service_account.json")
 GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-DAYONE_EXPORT_PATH = os.getenv("DAYONE_EXPORT_PATH", "./data/dayone_export.json")
-
 # --- Gmail ---
 GMAIL_RECIPIENT = os.getenv("GMAIL_RECIPIENT", "")
 GMAIL_CREDENTIALS_JSON = os.getenv("GMAIL_CREDENTIALS_JSON", "./credentials/gmail_oauth_credentials.json")
@@ -30,7 +28,6 @@ DRIVE_FILES = {
     "activities": "garmin_activities_master.csv",
     "sleep":      "garmin_sleep_master.csv",
     "daily":      "garmin_daily_master.csv",
-    "dayone":     "dayone_entries_master.csv",
 }
 
 # Subfolder on Drive for weekly narrative reports
@@ -79,18 +76,6 @@ DAILY_COLUMNS = [
     "avg_stress",             # P2
     "steps",
     "active_calories",
-    "loaded_at",
-]
-
-DAYONE_COLUMNS = [
-    "date",
-    "entry_id",
-    "word_count",
-    "sentiment_score",        # -1.0 to 1.0
-    "sentiment_label",        # positive / neutral / negative
-    "fatigue_flag",           # bool: Claude detected fatigue language
-    "motivation_flag",        # bool: Claude detected motivation language
-    "entry_summary",          # 1-2 sentence Claude summary
     "loaded_at",
 ]
 

@@ -1,12 +1,8 @@
 """
 transform/analysis.py — Generate weekly narrative report via Claude API.
 
-Pulls the last 7 days of data across all four sources and asks Claude
-to produce a structured markdown report. Report is uploaded to Drive
-as analysis_YYYY-WW.md.
-
-Runs after all CSVs are written — uses the freshly normalized data
-from the current run rather than re-downloading from Drive.
+Uses the last 7 days of Garmin data (activities, sleep, daily) to produce
+a structured markdown report. Uploaded to Drive as analysis_YYYY-WW.md.
 """
 
 import json
@@ -22,7 +18,6 @@ def generate_weekly_report(
     activities: list[dict],
     sleep: list[dict],
     daily: list[dict],
-    dayone: list[dict],
 ) -> str:
     """
     Generates a markdown weekly fitness review report.
@@ -39,14 +34,13 @@ def generate_weekly_report(
         ]
 
     payload = {
-        "week": f"{week_start.isoformat()} to {week_end.isoformat()}",
+        "week":        f"{week_start.isoformat()} to {week_end.isoformat()}",
         "activities":  _sanitize(last_7(activities)),
         "sleep":       _sanitize(last_7(sleep)),
         "daily":       _sanitize(last_7(daily)),
-        "journal":     _sanitize(last_7(dayone)),
     }
 
-    prompt = f"""You are analyzing one week of fitness and journal data for a personal weekly review.
+    prompt = f"""You are analyzing one week of Garmin fitness data for a personal weekly review.
 
 Data for the week of {payload['week']}:
 
@@ -57,30 +51,25 @@ Generate a structured markdown report with these exact sections:
 ## Weekly Fitness Review — {payload['week']}
 
 ### Training Summary
-Summarize runs: total distance, average pace, heart rate trends. Note any standout sessions.
+Summarize runs: total distance, average pace, heart rate trends. Note standout sessions.
 
 ### Sleep Analysis
-Summarize sleep quality and consistency. Flag any nights below 6 hours or sleep scores below 60.
+Summarize sleep quality and consistency. Flag nights below 6 hours or sleep scores below 60.
 Note HRV trends if available.
 
 ### Recovery & Readiness
-Combine body battery, resting HR trend, stress levels, and HRV status into a recovery picture.
-Flag if any metrics suggest under-recovery.
-
-### Journal Insights
-Summarize sentiment trend across the week. Call out fatigue or motivation flags.
-Note any correlation between journal tone and training performance.
+Combine body battery, resting HR trend, stress, and HRV status into a recovery picture.
+Flag any metrics suggesting under-recovery.
 
 ### Correlations
 Identify 1-3 concrete patterns visible in this week's data.
-Example: "Sleep score dropped below 70 on nights after long runs" or
-"Motivation flags align with days where body battery was above 80."
+Example: "Sleep score dropped below 70 on nights after long runs."
 
 ### Flags & Recommendations
-Bullet points only. Max 5. Focus on actionable observations.
+Bullet points only. Max 5. Actionable observations only.
 Flag data gaps (missing days, missing metrics).
 
-Keep the tone analytical, not motivational. Use specific numbers. Avoid vague statements."""
+Keep the tone analytical. Use specific numbers. No motivational filler."""
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 

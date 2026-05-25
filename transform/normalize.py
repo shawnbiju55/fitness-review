@@ -5,21 +5,20 @@ Normalization rules:
 - Add `loaded_at` timestamp to every row (UTC ISO format).
 - Enforce column order from config.py schema definitions.
 - Deduplicate on primary key before returning (activity_id for activities,
-  date for sleep/daily, entry_id for dayone).
+  date for sleep/daily).
 - Columns missing from raw data are filled with None (not dropped).
 """
 
 import csv
 import io
 from datetime import datetime, timezone
-from config import ACTIVITIES_COLUMNS, SLEEP_COLUMNS, DAILY_COLUMNS, DAYONE_COLUMNS
+from config import ACTIVITIES_COLUMNS, SLEEP_COLUMNS, DAILY_COLUMNS
 
 
 _SCHEMA_MAP = {
     "activities": (ACTIVITIES_COLUMNS, "activity_id"),
     "sleep":      (SLEEP_COLUMNS,      "date"),
     "daily":      (DAILY_COLUMNS,      "date"),
-    "dayone":     (DAYONE_COLUMNS,     "entry_id"),
 }
 
 
@@ -46,8 +45,6 @@ def normalize(records: list[dict], source: str) -> list[dict]:
         clean = {col: row.get(col) for col in columns if col != "loaded_at"}
         clean["loaded_at"] = loaded_at
 
-        # Drop raw_text (used only by sentiment.py, not stored in CSV)
-        clean.pop("raw_text", None)
 
         normalized.append(clean)
 
