@@ -14,6 +14,7 @@ GARMIN_EMAIL = os.getenv("GARMIN_EMAIL")
 GARMIN_PASSWORD = os.getenv("GARMIN_PASSWORD")
 GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 OAUTH_CLIENT_SECRETS = os.getenv("OAUTH_CLIENT_SECRETS", "./credentials/client_secrets.json")
 OAUTH_TOKEN_PATH = os.getenv("OAUTH_TOKEN_PATH", "./credentials/oauth_token.json")
 

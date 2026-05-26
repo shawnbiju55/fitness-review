@@ -8,9 +8,7 @@ a structured markdown report. Uploaded to Drive as analysis_YYYY-WW.md.
 import json
 from datetime import date, timedelta
 import anthropic
-from config import ANTHROPIC_API_KEY
-
-_MODEL = "claude-sonnet-4-20250514"
+from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
 
 
 def generate_weekly_report(
@@ -75,7 +73,7 @@ Keep the tone analytical. Use specific numbers. No motivational filler."""
 
     try:
         response = client.messages.create(
-            model=_MODEL,
+            model=ANTHROPIC_MODEL,
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
