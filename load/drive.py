@@ -199,3 +199,25 @@ def _find_or_create_subfolder(name: str) -> str:
     }
     folder = svc.files().create(body=metadata, fields="id").execute()
     return folder["id"]
+
+
+def read_last_n_days(source: str, n: int = 7) -> list[dict]:
+    """
+    Downloads the master CSV for source from Drive and returns the last n days of rows.
+    Returns [] if the file doesn't exist or download fails.
+    source: one of "activities", "sleep", "daily"
+    """
+    from config import DRIVE_FILES
+    filename = DRIVE_FILES[source]
+    file_id = _find_file_id(filename, GOOGLE_DRIVE_FOLDER_ID)
+    if not file_id:
+        return []
+    try:
+        rows = _download_csv(file_id)
+    except Exception as e:
+        print(f"  [drive] Warning: could not read {filename} for report: {e}")
+        return []
+
+    from datetime import date, timedelta
+    cutoff = (date.today() - timedelta(days=n)).isoformat()
+    return [r for r in rows if r.get("date", "") >= cutoff]

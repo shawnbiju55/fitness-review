@@ -23,7 +23,7 @@ Failure behavior:
 
 from datetime import date, timedelta
 from load.watermark import get_watermark, set_watermark, get_all_watermarks
-from load.drive import append_to_master, upload_analysis_report
+from load.drive import append_to_master, upload_analysis_report, read_last_n_days
 from load.gmail import send_weekly_report
 from pull.garmin import pull_activities, pull_sleep, pull_daily
 from transform.normalize import normalize
@@ -101,9 +101,9 @@ def main():
         week_label = week_end.strftime("%Y-W%V")
         report_md = generate_weekly_report(
             week_end=week_end,
-            activities=activities_norm,
-            sleep=sleep_norm,
-            daily=daily_norm,
+            activities=read_last_n_days("activities", 7),
+            sleep=read_last_n_days("sleep", 7),
+            daily=read_last_n_days("daily", 7),
         )
         upload_analysis_report(week_label, report_md)
     except Exception as e:
